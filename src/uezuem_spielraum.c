@@ -124,7 +124,7 @@ void app_main(void){
         if(average_voltage >= 2900 && !kick_played){
             if (i2s_task_handle == NULL){
                 printf("Playing WAW1\n");
-                xTaskCreate(i2s_transmit_wav_task, "i2s", 4096, (void*) &params, 5, &i2s_task_handle);
+                xTaskCreate(i2s_transmit_wav_task, "i2s", 8192, (void*) &params, 5, &i2s_task_handle);
             kick_played = true;
             clap_played = false;
             }
@@ -137,7 +137,7 @@ void app_main(void){
         if(average_voltage <= 2000 && !clap_played){
             if(i2s_task_handle == NULL){
             printf("Playing WAW2\n");
-            xTaskCreate(i2s_transmit_wav_task, "i2s", 4096, (void*) &params_2, 5, &i2s_task_handle);
+            xTaskCreate(i2s_transmit_wav_task, "i2s", 8192, (void*) &params_2, 5, &i2s_task_handle);
             clap_played = true;
             kick_played = false;
             }

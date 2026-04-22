@@ -179,17 +179,14 @@ void i2s_transmit_wav_task(void *pvParameters) {
         return;
     }
 
-    // Allocate buffer for audio data
-    int16_t *buf = heap_caps_malloc(data_size, MALLOC_CAP_SPIRAM);
+    // Allocate buffer for audio data on heap (avoid task stack overflow)
+    uint8_t *buf = heap_caps_malloc(AUDIO_BUFF, MALLOC_CAP_SPIRAM);
     if (buf == NULL) {
-        ESP_LOGE(I2S_TAG, "Failed to allocate memory for buffer");
+        ESP_LOGE(I2S_TAG, "Failed to allocate audio chunk buffer");
         *task_handle = NULL;
         vTaskDelete(NULL);
         return;
     }
-    
-    // Copy data to buffer and enable I2S channel
-    memcpy(buf, data, data_size);
     i2s_channel_enable(*tx_chan);
     
     ESP_LOGI(I2S_TAG, "Starting transmission");
@@ -230,6 +227,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                         vTaskDelete(NULL);
                         return;
                     }
+                    bytes_per_sample = target_bit_depth / 8;
                 }
             }
         }
@@ -246,6 +244,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                     uint8_t  *dst_24 = heap_caps_malloc(bytes_to_write_24, MALLOC_CAP_SPIRAM);
                     if (dst_24 == NULL) {
                         ESP_LOGE(I2S_TAG, "Failed to allocate memory for 16-bit buffer");
+                        free(buf);
                         *task_handle = NULL;
                         vTaskDelete(NULL);
                         return;
@@ -287,6 +286,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                     uint8_t *current_pos_24 = heap_caps_malloc(bytes_to_write, MALLOC_CAP_SPIRAM);          
                     if (current_pos_24 == NULL) {
                         ESP_LOGE(I2S_TAG, "Failed to allocate memory for 24-bit buffer");
+                        free(buf);
                         *task_handle = NULL;
                         vTaskDelete(NULL);
                         return;
@@ -394,7 +394,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                         // Apply the mixed sample based on bit depth
                         switch (highest_bit_depth) {
                             case 16:
-                                buf[(total_sent_bytes/bytes_per_sample) + i] = (int16_t)mixed;
+                                ((int16_t*)buf)[i] = (int16_t)mixed;
                                 break;
                             
                             case 24:
@@ -403,6 +403,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                                     mixed_buffer = heap_caps_malloc(AUDIO_BUFF * 2, MALLOC_CAP_SPIRAM);
                                     if (!mixed_buffer) {
                                         ESP_LOGE(I2S_TAG, "Failed to allocate mixed buffer");
+                                        free(buf);
                                         *task_handle = NULL;
                                         vTaskDelete(NULL);
                                         return;
@@ -418,7 +419,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                             case 32:
                                 // For 32-bit, store directly
                                 if ((total_sent_bytes/bytes_per_sample) + i < data_size/bytes_per_sample) {
-                                    *((int32_t*)buf + (total_sent_bytes/bytes_per_sample) + i) = mixed;
+                                    ((int32_t*)buf)[i] = mixed;
                                 }
                                 break;
                         }
@@ -431,7 +432,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                                 int32_t sample2 = (int16_t)(second_file_position[i*2] | (second_file_position[i*2 + 1] << 8));  
                                 int32_t mixed = sample1 + sample2;
                                 mixed = clip_sample(mixed, highest_bit_depth);
-                                buf[(total_sent_bytes/bytes_per_sample) + i] = (int16_t)mixed;
+                                ((int16_t*)buf)[i] = (int16_t)mixed;
                                 break;
                             }
                             
@@ -452,7 +453,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
                 ESP_LOGI(I2S_TAG, "Bit difference: %d, Highest bit depth: %d", bit_difference, highest_bit_depth);
                 switch (highest_bit_depth) {
                     case 16:
-                        ESP_ERROR_CHECK(i2s_channel_write(*tx_chan, current_pos, bytes_to_write, &written_bytes, 1000));
+                        ESP_ERROR_CHECK(i2s_channel_write(*tx_chan, buf, bytes_to_write, &written_bytes, 1000));
                         break;
                         
                     case 24:
@@ -494,6 +495,7 @@ void i2s_transmit_wav_task(void *pvParameters) {
         ESP_LOGE(I2S_TAG, "Queue send failed");
     }
     free(printout);
+    free(buf);
     *task_handle = NULL;
     ESP_LOGI(I2S_TAG, "Task with bit depth %u has finished", bits_per_sample);
     xQueueReset(xQueue);

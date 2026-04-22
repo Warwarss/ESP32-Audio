@@ -1,0 +1,7 @@
+{
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "uart.h": "c",
+        "esp_event.h": "c"
+    }
+}

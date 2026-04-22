@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "Demo2",
+			"path": "../Demo2"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"limits": "c",
+			"cmath": "c",
+			"format_wav.h": "c",
+			"esp_heap_caps.h": "c",
+			"esp_system.h": "c",
+			"sdkconfig.h": "c",
+			"adc_cali_scheme.h": "c"
+		}
+	}
+}

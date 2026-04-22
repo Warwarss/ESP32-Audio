@@ -1,0 +1,8 @@
+CMake Error at C:/Espressif/frameworks/esp-idf-v5.3.1/tools/cmake/project.cmake:465 (message):
+  Directory specified in EXTRA_COMPONENT_DIRS doesn't exist:
+  C:/Users/ACER/Documents/PlatformIO/Projects/Demo/.pio/libdeps/build/esp_littlefs
+Call Stack (most recent call first):
+  C:/Espressif/frameworks/esp-idf-v5.3.1/tools/cmake/project.cmake:549 (__project_init)
+  CMakeLists.txt:5 (project)
+
+

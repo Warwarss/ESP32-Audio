@@ -114,6 +114,21 @@ int32_t clip_sample(int32_t sample_value, uint8_t bit_depth) {
     return sample_value;
 }
 
+void write_to_txt_file(const char* filename, int32_t* data, size_t length) {
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        ESP_LOGE(I2S_TAG, "Failed to open file for writing: %s", filename);
+        return;
+    }
+    
+    for (size_t i = 0; i < length; i++) {
+        fprintf(file, "%ld\n", data[i]);
+    }
+    
+    fclose(file);
+    ESP_LOGI(I2S_TAG, "Data successfully written to %s", filename);
+}
+
 void i2s_transmit_wav_task(void *pvParameters) {
     // Parameter acquisition
     if (xQueue == NULL) {
@@ -191,11 +206,15 @@ void i2s_transmit_wav_task(void *pvParameters) {
     
     ESP_LOGI(I2S_TAG, "Starting transmission");
     int64_t start_time = esp_timer_get_time();
-    if(bits_per_sample == 16) {
-        configure_i2s_bit_depth(tx_chan, 24, task_handle);
-    }
 
     int32_t* printout = heap_caps_malloc(data_size * sizeof(int32_t), MALLOC_CAP_SPIRAM);
+    if (printout == NULL) {
+        ESP_LOGE(I2S_TAG, "Failed to allocate printout buffer");
+        free(buf);
+        *task_handle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
     int32_t* printout_ptr = printout;
 
     // Main transmission loop
@@ -257,19 +276,19 @@ void i2s_transmit_wav_task(void *pvParameters) {
                         *(int16_t*)pdst_24 = psrc_16[i];
                         pdst_24 += 2;
                         *printout_ptr = (int32_t)((*(pdst_24-3)) | (*(pdst_24-2) << 8) | (*(pdst_24-1) << 16));
-                        if (i == 0){
-                        ESP_LOGI(I2S_TAG, "10 printout samples: %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld",
-                                 printout_ptr[0], printout_ptr[1], printout_ptr[2], printout_ptr[3], printout_ptr[4],
-                                 printout_ptr[5], printout_ptr[6], printout_ptr[7], printout_ptr[8], printout_ptr[9]);
-                        ESP_LOGI(I2S_TAG, "Bytes %02X %02X %02X Converted Sample: %ld", 
-                                 *(pdst_24-1), *(pdst_24-2), *(pdst_24-3), *printout_ptr);
-                        }
+                        // if (i == 0){
+                        // ESP_LOGI(I2S_TAG, "10 printout samples: %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld",
+                        //          printout_ptr[0], printout_ptr[1], printout_ptr[2], printout_ptr[3], printout_ptr[4],
+                        //          printout_ptr[5], printout_ptr[6], printout_ptr[7], printout_ptr[8], printout_ptr[9]);
+                        // ESP_LOGI(I2S_TAG, "Bytes %02X %02X %02X Converted Sample: %ld", 
+                        //          *(pdst_24-1), *(pdst_24-2), *(pdst_24-3), *printout_ptr);
+                        // }
                         
-                        /*if (i < 3) {
-                            // Debugging output for the first few samples
-                            ESP_LOGI(I2S_TAG, "Sample %d: %02X %02X %02X Converted Sample: %ld", i, 
-                                     *(pdst_24-1), *(pdst_24-2), *(pdst_24-3), *printout_ptr);                        
-                        }*/
+                        // if (i < 3) {
+                        //     // Debugging output for the first few samples
+                        //     ESP_LOGI(I2S_TAG, "Sample %d: %02X %02X %02X Converted Sample: %ld", i, 
+                        //              *(pdst_24-1), *(pdst_24-2), *(pdst_24-3), *printout_ptr);                        
+                        // }
                         printout_ptr++;
                     } 
                     ESP_ERROR_CHECK(i2s_channel_write(*tx_chan, dst_24, bytes_to_write_24, &written_bytes, 1000));
